@@ -1,0 +1,22 @@
+{
+  "name": "@shared/file",
+  "version": "1.0.0",
+  "description": "Shared file utility functions for internal use",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui"
+  },
+  "keywords": [
+    "file",
+    "utilities"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.5.0"
+  }
+}
