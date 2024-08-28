@@ -1,0 +1,76 @@
+{
+  "publisher": "NorthSeacoder",
+  "name": "jump",
+  "displayName": "Jump",
+  "version": "0.0.1",
+  "private": true,
+  "packageManager": "pnpm@9.7.1",
+  "description": "",
+  "license": "MIT",
+  "homepage": "https://github.com/NorthSeacoder/vsocde-extensions/extensions/jump#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NorthSeacoder/vsocde-extensions"
+  },
+  "bugs": {
+    "url": "https://github.com/NorthSeacoder/vsocde-extensions/issues"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/index.js",
+  "icon": "res/icon.png",
+  "files": [
+    "LICENSE.md",
+    "dist/*",
+    "res/*"
+  ],
+  "engines": {
+    "vscode": "^1.92.0"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "jump",
+        "title": "Jump",
+        "category": "jump"
+    }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "jump config",
+      "properties": {
+        "jump.url":{
+            "type": "string",
+            "default": "https://code.visualstudio.com/",
+            "description": "any url you want to jump"
+        },
+        "jump.label":{
+            "type": "string",
+            "default": "code",
+            "description": "the label show in the status bar"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --external vscode",
+    "dev": "nr build --watch",
+    "prepare": "nr update",
+    "update": "vscode-ext-gen --output src/generated/meta.ts",
+    "lint": "eslint .",
+    "vscode:prepublish": "nr build",
+    "publish": "vsce publish --no-dependencies",
+    "pack": "vsce package --no-dependencies",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit",
+    "release": "bumpp && nr publish"
+  },
+  "devDependencies": {
+    "reactive-vscode": "^0.2.0",
+    "vscode-ext-gen": "^0.4.1"
+  }
+}

@@ -1,19 +1,12 @@
-// See https://go.microsoft.com/fwlink/?LinkId=733558
-// for the documentation about the tasks.json format
 {
   "version": "2.0.0",
   "tasks": [
     {
       "type": "npm",
-      "script": "dev:extension",
+      "script": "dev",
       "isBackground": true,
-      "presentation": {
-        "reveal": "never"
-      },
-      // "problemMatcher": "$tsc-watch",
       "problemMatcher": [
         {
-          // "base": "$ts-webpack-watch",
           "base": "$tsc-watch",
           "background": {
             "activeOnStart": true,
@@ -22,10 +15,19 @@
           }
         }
       ],
-      "group": {
-				"kind": "build",
-				"isDefault": true
-			}
+      "options": {
+        "cwd": "${workspaceFolder}/${input:extensionPath}"
+      },
+      "presentation": {
+        "reveal": "never"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "extensionPath",
+      "type": "promptString",
+      "description": "Extension path (e.g. extensions/jump)"
     }
   ]
 }
