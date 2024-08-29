@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "cz": "git add . && git-cz",
-    "cl": "conventional-changelog -p angular -i packages/extension/CHANGELOG.md -s -r 0"
+    "cl": "conventional-changelog -p angular -i packages/extension/CHANGELOG.md -s -r 0",
+    "release:xmind":"nr -F @nsea/xmind-handler release"
   },
   "keywords": [],
   "author": "",

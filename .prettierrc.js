@@ -15,10 +15,5 @@ module.exports = {
     proseWrap: 'preserve', // 不知道怎么翻译
     htmlWhitespaceSensitivity: 'ignore', // 对HTML全局空白不敏感
     endOfLine: 'lf', // 结束行形式
-    embeddedLanguageFormatting: 'auto', // 对引用代码进行格式化
-    // import 排序
-    plugins: [require.resolve('@trivago/prettier-plugin-sort-imports')],
-    importOrder: ['^react$', '^@?\\w', '^[./]'],
-    importOrderSeparation: true,
-    importOrderSortSpecifiers: true,
+    embeddedLanguageFormatting: 'auto' // 对引用代码进行格式化
 };

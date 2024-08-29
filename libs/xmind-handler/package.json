@@ -1,0 +1,48 @@
+{
+  "name": "@nsea/xmind-handler",
+  "version": "0.0.1",
+  "description": "",
+  "keywords": [
+    "lib",
+    "xmind",
+    "praser"
+  ],
+
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "homepage": "https://github.com/NorthSeacoder/vsocde-extensions/libs/xmind-handler#readme",
+  "bugs": {
+    "url": "https://github.com/NorthSeacoder/vsocde-extensions/issues"
+  },
+  "author": "NorthSeacoder",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NorthSeacoder/vsocde-extensions.git"
+  },
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.15.4",
+    "@shared/tsconfig": "workspace:^"
+  },
+  "scripts": {
+    "build": "tsup",
+    "ci": "nr build && nr check-format && nr check-exports && nr lint && nr test",
+    "lint": "tsc",
+    "test": "vitest run",
+    "format": "prettier --write .",
+    "check-format": "prettier --check .",
+    "check-exports": "attw --pack .",
+    "local-release": "nr ci && changeset version && changeset publish",
+    "prepublishOnly": "npm run ci",
+    "release": "bumpp"
+  }
+}

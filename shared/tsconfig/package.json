@@ -1,0 +1,8 @@
+{
+  "name": "@shared/tsconfig",
+  "version": "1.0.0",
+  "description": "Shared tsconfig internal use",
+  "main": "tsconfig.json",
+  "author": "",
+  "license": "MIT"
+}

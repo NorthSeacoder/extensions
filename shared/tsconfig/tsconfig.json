@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    /* 基础选项： */
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "es2022",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    /* 严格性 */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    /* 如果使用 TypeScript 转译： */
+    "module": "Preserve",
+    "lib": ["es2022"],
+    "noEmit": true
+  }
+}
