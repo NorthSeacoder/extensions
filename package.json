@@ -6,7 +6,8 @@
   "scripts": {
     "cz": "git add . && git-cz",
     "cl": "conventional-changelog -p angular -i packages/extension/CHANGELOG.md -s -r 0",
-    "release:xmind":"nr -F @nsea/xmind-handler release"
+    "release:xmind": "nr -F @nsea/xmind-handler release",
+    "local-release": "changeset version"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +15,7 @@
   "devDependencies": {
     "@antfu/eslint-config": "^2.27.3",
     "@antfu/ni": "^0.22.4",
+    "@changesets/cli": "^2.27.7",
     "@types/vscode": "^1.92.0",
     "@vitest/ui": "^2.0.5",
     "@vscode/vsce": "^3.0.0",

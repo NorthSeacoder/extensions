@@ -1,9 +1,5 @@
 lockfileVersion: '6.0'
 
-settings:
-  autoInstallPeers: true
-  excludeLinksFromLockfile: false
-
 importers:
 
   .:
@@ -14,6 +10,9 @@ importers:
       '@antfu/ni':
         specifier: ^0.22.4
         version: 0.22.4
+      '@changesets/cli':
+        specifier: ^2.27.7
+        version: 2.27.7
       '@types/vscode':
         specifier: ^1.92.0
         version: 1.92.0
@@ -71,9 +70,6 @@ importers:
       '@arethetypeswrong/cli':
         specifier: ^0.15.4
         version: 0.15.4
-      '@changesets/cli':
-        specifier: ^2.27.7
-        version: 2.27.7
       '@shared/tsconfig':
         specifier: workspace:^
         version: link:../../shared/tsconfig
@@ -7065,3 +7061,7 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
     dev: true
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false

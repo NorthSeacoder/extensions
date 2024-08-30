@@ -42,6 +42,6 @@
     "check-exports": "attw --pack .",
     "local-release": "nr ci && changeset version && changeset publish",
     "prepublishOnly": "npm run ci",
-    "release": "bumpp"
+    "release": "bumpp --verbose"
   }
 }
