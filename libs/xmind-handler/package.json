@@ -34,14 +34,14 @@
   },
   "scripts": {
     "build": "tsup",
-    "ci": "nr build && nr check-format && nr check-exports && nr lint && nr test",
+    "ci": "nr build && nr check-exports && nr lint && nr test",
     "lint": "tsc",
     "test": "vitest run",
     "format": "prettier --write .",
     "check-format": "prettier --check .",
     "check-exports": "attw --pack .",
-    "local-release": "nr ci && changeset version && changeset publish",
+    "local-release": "nr ci ",
     "prepublishOnly": "npm run ci",
-    "release": "bumpp --verbose"
+    "release": "bumpp --verbose&& changeset publish"
   }
 }

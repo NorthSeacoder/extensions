@@ -6,8 +6,8 @@
   "scripts": {
     "cz": "git add . && git-cz",
     "cl": "conventional-changelog -p angular -i packages/extension/CHANGELOG.md -s -r 0",
-    "release:xmind": "nr -F @nsea/xmind-handler release",
-    "local-release": "changeset version"
+    "release:xmind": "nr -F @nsea/xmind-handler ci && nr local-release",
+    "local-release": "changeset version && changeset publish"
   },
   "keywords": [],
   "author": "",
