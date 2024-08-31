@@ -1,13 +1,13 @@
 {
   "name": "vscode-extensions",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "main": "index.js",
   "scripts": {
     "cz": "git add . && git-cz",
     "cl": "conventional-changelog -p angular -i packages/extension/CHANGELOG.md -s -r 0",
-    "release:xmind": "nr -F @nsea/xmind-handler ci && nr local-release",
-    "local-release": "changeset version && changeset publish"
+    "release:xmind": "nr -F @nsea/xmind-handler release",
+    "bump":"bumpp -r"
   },
   "keywords": [],
   "author": "",
