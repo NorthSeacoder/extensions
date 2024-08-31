@@ -7,6 +7,9 @@
     "xmind",
     "praser"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "dist/index.js",
   "exports": {
     ".": {
