@@ -41,6 +41,6 @@
     "check-exports": "attw --pack .",
     "ci": "nr build && nr check-exports && nr lint && nr test",
     "prepublishOnly": "npm run ci",
-    "release": "pwd && bumpp && nr pubilsh"
+    "release": "pwd && bumpp && npm pubilsh"
   }
 }
