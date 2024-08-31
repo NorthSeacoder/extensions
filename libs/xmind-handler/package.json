@@ -1,6 +1,6 @@
 {
   "name": "@nsea/xmind-handler",
-  "version": "0.0.3",
+  "version": "0.0.1-beta.1",
   "description": "",
   "keywords": [
     "lib",
@@ -34,14 +34,13 @@
   },
   "scripts": {
     "build": "tsup",
-    "ci": "nr build && nr check-exports && nr lint && nr test",
     "lint": "tsc",
     "test": "vitest run",
     "format": "prettier --write .",
     "check-format": "prettier --check .",
     "check-exports": "attw --pack .",
-    "local-release": "nr ci ",
+    "ci": "nr build && nr check-exports && nr lint && nr test",
     "prepublishOnly": "npm run ci",
-    "release": "pwd && bumpp"
+    "release": "pwd && bumpp && nr pubilsh"
   }
 }
