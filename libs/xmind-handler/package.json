@@ -1,6 +1,6 @@
 {
   "name": "@nsea/xmind-handler",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "",
   "keywords": [
     "lib",
@@ -42,6 +42,6 @@
     "check-exports": "attw --pack .",
     "local-release": "nr ci ",
     "prepublishOnly": "npm run ci",
-    "release": "bumpp --verbose&& changeset publish"
+    "release": "pwd && bumpp"
   }
 }
