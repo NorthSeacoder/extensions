@@ -1,0 +1,50 @@
+{
+  "name": "@nsea/starter",
+  "version": "1.0.2",
+  "description": "",
+  "keywords": [
+    "lib",
+    "xmind",
+    "praser"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "homepage": "https://github.com/NorthSeacoder/vsocde-extensions/libs/starter#readme",
+  "bugs": {
+    "url": "https://github.com/NorthSeacoder/vsocde-extensions/issues"
+  },
+  "author": "NorthSeacoder",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NorthSeacoder/vsocde-extensions.git"
+  },
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.15.4",
+    "@shared/tsconfig": "workspace:^",
+    "@shared/bump-config": "workspace:^"
+  },
+  "scripts": {
+    "build": "tsup",
+    "lint": "tsc",
+    "test": "vitest run",
+    "format": "prettier --write .",
+    "check-format": "prettier --check .",
+    "check-exports": "attw --pack .",
+    "ci": "nr build && nr check-exports && nr lint && nr test",
+    "prepublishOnly": "npm run ci",
+    "release": "pwd && bumpp && npm publish"
+  }
+}

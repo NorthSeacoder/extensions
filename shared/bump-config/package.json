@@ -1,0 +1,8 @@
+{
+  "name": "@shared/bump-config",
+  "version": "0.0.1",
+  "description": "Shared bumpp internal use",
+  "main": "index.ts",
+  "author": "",
+  "license": "MIT"
+}

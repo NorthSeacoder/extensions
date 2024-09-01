@@ -1,6 +1,6 @@
 {
   "name": "@shared/tsconfig",
-  "version": "1.0.1",
+  "version": "0.0.1",
   "description": "Shared tsconfig internal use",
   "main": "tsconfig.json",
   "author": "",

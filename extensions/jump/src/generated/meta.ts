@@ -4,7 +4,7 @@
 // Meta info
 export const publisher = "NorthSeacoder"
 export const name = "jump"
-export const version = "0.0.1"
+export const version = "1.0.1"
 export const displayName = "Jump"
 export const description = undefined
 export const extensionId = `${publisher}.${name}`

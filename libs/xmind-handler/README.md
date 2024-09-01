@@ -1,3 +1,3 @@
-# @nsea/handler
+# @nsea/xmind-handler
 
-A demo package for Total TypeScript.
+
