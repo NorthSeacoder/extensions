@@ -73,6 +73,10 @@ importers:
         version: 0.4.2
 
   libs/starter:
+    dependencies:
+      cac:
+        specifier: ^6.7.14
+        version: 6.7.14
     devDependencies:
       '@arethetypeswrong/cli':
         specifier: ^0.15.4

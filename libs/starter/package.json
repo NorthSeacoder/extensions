@@ -8,7 +8,8 @@
     "praser"
   ],
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "main": "dist/index.js",
   "exports": {
@@ -17,14 +18,14 @@
       "require": "./dist/index.cjs"
     }
   },
-  "homepage": "https://github.com/NorthSeacoder/vsocde-extensions/libs/starter#readme",
+  "homepage": "https://github.com/NorthSeacoder/extensions/blob/main/libs/starter/README.md",
   "bugs": {
-    "url": "https://github.com/NorthSeacoder/vsocde-extensions/issues"
+    "url": "https://github.com/NorthSeacoder/extensions/issues"
   },
   "author": "NorthSeacoder",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/NorthSeacoder/vsocde-extensions.git"
+    "url": "git+https://github.com/NorthSeacoder/extensions.git"
   },
   "license": "MIT",
   "files": [
@@ -45,5 +46,8 @@
     "ci": "nr build && nr check-exports && nr lint && nr test",
     "prepublishOnly": "npm run ci",
     "release": "pwd && bumpp && npm publish"
+  },
+  "dependencies": {
+    "cac": "^6.7.14"
   }
 }
