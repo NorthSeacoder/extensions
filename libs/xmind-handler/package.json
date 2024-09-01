@@ -18,14 +18,14 @@
       "require": "./dist/index.cjs"
     }
   },
-  "homepage": "https://github.com/NorthSeacoder/vsocde-extensions/libs/xmind-handler#readme",
+  "homepage": "https://github.com/NorthSeacoder/extensions/blob/main/libs/xmind-handler/README.md",
   "bugs": {
-    "url": "https://github.com/NorthSeacoder/vsocde-extensions/issues"
+    "url": "https://github.com/NorthSeacoder/extensions/issues"
   },
   "author": "NorthSeacoder",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/NorthSeacoder/vsocde-extensions.git"
+    "url": "git+https://github.com/NorthSeacoder/extensions.git"
   },
   "license": "MIT",
   "files": [
