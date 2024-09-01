@@ -33,11 +33,10 @@
   "type": "module",
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.15.4",
-    "@shared/tsconfig": "workspace:^",
-    "@shared/bump-config": "workspace:^"
+    "@shared/config": "workspace:^"
   },
   "scripts": {
-    "start":"esno run.ts",
+    "start": "esno run.ts",
     "build": "tsup",
     "lint": "tsc",
     "test": "vitest run",
@@ -47,5 +46,8 @@
     "ci": "nr build && nr check-exports && nr lint && nr test",
     "prepublishOnly": "npm run ci",
     "release": "pwd && bumpp && npm publish"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1"
   }
 }

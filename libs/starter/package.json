@@ -33,8 +33,7 @@
   "type": "module",
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.15.4",
-    "@shared/tsconfig": "workspace:^",
-    "@shared/bump-config": "workspace:^"
+    "@shared/config": "workspace:^"
   },
   "scripts": {
     "build": "tsup",

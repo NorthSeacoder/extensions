@@ -1,0 +1,7 @@
+{
+  "name": "@shared/config",
+  "version": "0.0.1",
+  "description": "Shared config internal use",
+  "author": "",
+  "license": "MIT"
+}
