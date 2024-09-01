@@ -37,7 +37,7 @@ export async function processXMind(
         await writeMarkdownOutput(jsonData, outputDir)
         break
       case 'xmind':
-        await writeXmindOutput(jsonData, outputDir, inputFile,zip)
+        await writeXmindOutput(jsonData, outputDir, inputFile, zip)
         break
     }
   }

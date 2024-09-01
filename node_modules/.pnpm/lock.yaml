@@ -83,6 +83,9 @@ importers:
 
   libs/xmind-handler:
     dependencies:
+      cac:
+        specifier: ^6.7.14
+        version: 6.7.14
       jszip:
         specifier: ^3.10.1
         version: 3.10.1
@@ -2088,7 +2091,6 @@ packages:
   /cac@6.7.14:
     resolution: {integrity: sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ==}
     engines: {node: '>=8'}
-    dev: true
 
   /cachedir@2.3.0:
     resolution: {integrity: sha512-A+Fezp4zxnit6FanDmv9EqXNAi3vt9DWp51/71UEhXukb7QUuvtv9344h91dyAxuTLoSYJFU299qzR3tzwPAhw==}
