@@ -120,6 +120,6 @@ describe('filterTopicsByMarkers', () => {
     }
     expect(filterTopicsByMarkers(topic, ['priority-1'])).toBe(true)
     expect(topic.children?.attached?.length).toBe(1)
-    expect(topic.children?.attached?.[0].title).toBe('Child 1')
+    expect(topic.children?.attached?.[0]?.title).toBe('Child 1')
   })
 })
