@@ -43,7 +43,7 @@ export async function processXMind(
   }
 }
 
-function filterTopicsByMarkers(topic: TopicJson, markers: string[]): boolean {
+export function filterTopicsByMarkers(topic: TopicJson, markers: string[]): boolean {
   if (!topic) return false
 
   const hasMarker = topic.markers?.some((marker) => markers.includes(marker.markerId)) ?? false
