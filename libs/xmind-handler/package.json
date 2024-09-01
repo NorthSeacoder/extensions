@@ -37,6 +37,7 @@
     "@shared/bump-config": "workspace:^"
   },
   "scripts": {
+    "start":"esno run.ts",
     "build": "tsup",
     "lint": "tsc",
     "test": "vitest run",
