@@ -38,6 +38,9 @@ importers:
       conventional-changelog-cli:
         specifier: ^5.0.0
         version: 5.0.0
+      esbuild-visualizer:
+        specifier: ^0.6.0
+        version: 0.6.0
       eslint:
         specifier: ^9.9.1
         version: 9.9.1
@@ -71,6 +74,19 @@ importers:
       vscode-ext-gen:
         specifier: ^0.4.1
         version: 0.4.2
+
+  libs/cn-map:
+    dependencies:
+      cac:
+        specifier: ^6.7.14
+        version: 6.7.14
+    devDependencies:
+      '@arethetypeswrong/cli':
+        specifier: ^0.15.4
+        version: 0.15.4
+      '@shared/config':
+        specifier: workspace:^
+        version: link:../../shared/config
 
   libs/starter:
     dependencies:
@@ -2898,6 +2914,16 @@ packages:
 
   /es-module-lexer@1.5.4:
     resolution: {integrity: sha512-MVNK56NiMrOwitFB7cqDwq0CQutbw+0BvLshJSse0MUNU+y1FC3bUS/AQg7oUng+/wKrrki7JfmwtVHkVfPLlw==}
+    dev: true
+
+  /esbuild-visualizer@0.6.0:
+    resolution: {integrity: sha512-oNK3JAhC7+re93VTtUdWJKTDVnA2qXPAjCAoaw9OxEFUXztszw3kcaK46u1U790T8FdUBAWv6F9Xt59P8nJCVA==}
+    engines: {node: '>=18'}
+    hasBin: true
+    dependencies:
+      open: 8.4.2
+      picomatch: 2.3.1
+      yargs: 17.7.2
     dev: true
 
   /esbuild@0.21.5:
