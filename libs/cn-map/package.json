@@ -1,18 +1,18 @@
 {
-  "name": "@nsea/xmind-handler",
-  "version": "0.0.1",
+  "name": "@nsea/starter",
+  "version": "1.0.2",
   "description": "",
   "keywords": [
     "lib",
     "xmind",
     "praser"
   ],
-  "bin": {
-    "xmind": "bin/xmind.js"
-  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "bin": {
+    "cn": "bin/cn.js"
   },
   "main": "dist/index.js",
   "exports": {
@@ -21,7 +21,7 @@
       "require": "./dist/index.cjs"
     }
   },
-  "homepage": "https://github.com/NorthSeacoder/extensions/blob/main/libs/xmind-handler/README.md",
+  "homepage": "https://github.com/NorthSeacoder/extensions/blob/main/libs/starter/README.md",
   "bugs": {
     "url": "https://github.com/NorthSeacoder/extensions/issues"
   },
@@ -40,7 +40,6 @@
     "@shared/config": "workspace:^"
   },
   "scripts": {
-    "start": "esno src/cli/run.ts",
     "build": "tsup",
     "lint": "tsc",
     "test": "vitest run",
@@ -52,7 +51,6 @@
     "release": "pwd && bumpp && npm publish"
   },
   "dependencies": {
-    "cac": "^6.7.14",
-    "jszip": "^3.10.1"
+    "cac": "^6.7.14"
   }
 }

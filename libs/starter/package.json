@@ -11,6 +11,9 @@
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
+  "bin": {
+    "starter": "bin/starter.js"
+  },
   "main": "dist/index.js",
   "exports": {
     ".": {
