@@ -15,6 +15,7 @@
     "starter": "bin/starter.js"
   },
   "main": "dist/index.js",
+  
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -32,7 +33,8 @@
   },
   "license": "MIT",
   "files": [
-    "dist"
+    "dist",
+    "bin"
   ],
   "type": "module",
   "devDependencies": {

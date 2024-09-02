@@ -16,6 +16,10 @@
     /* 如果使用 TypeScript 转译： */
     "module": "Preserve",
     "lib": ["es2022"],
-    "noEmit": true
-  }
+    "noEmit": true,
+    "forceConsistentCasingInFileNames": true,
+  },
+  "exclude": [
+    "node_modules"
+  ]
 }
