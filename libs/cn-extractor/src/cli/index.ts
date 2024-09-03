@@ -1,6 +1,6 @@
 import process from 'node:process'
 import { version as packageVersion } from '../../package.json'
-import { starter } from '../starter'
+import { extractor } from '../cn-extractor'
 import { ExitCode } from './exit-code'
 import { parseArgs } from './parse-args'
 
@@ -26,7 +26,7 @@ export async function main(): Promise<void> {
         console.log('inputFile is required')
         process.exit(ExitCode.FatalError)
       }
-      await starter()
+      await extractor()
     }
   } catch (error) {
     errorHandler(error as Error)

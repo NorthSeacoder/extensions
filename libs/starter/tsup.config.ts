@@ -6,4 +6,8 @@ export default defineConfig({
   dts: true,
   outDir: 'dist',
   clean: true,
+  minify: true,
+  treeshake: true,
+  cjsInterop: true,
+  // metafile: true,
 })
