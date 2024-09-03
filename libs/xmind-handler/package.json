@@ -45,7 +45,7 @@
     "clean": "rimraf dist stats.html",
     "start": "esno src/cli/run.ts",
     "build": "nr clean && tsup",
-    "analyze": "esbuild-visualizer --metadata ./dist/metafile-*.json --open",
+    "analyze": "nr clean && tsup --metafile &&esbuild-visualizer --metadata ./dist/metafile-*.json --open",
     "lint": "tsc",
     "test": "vitest run",
     "format": "prettier --write .",

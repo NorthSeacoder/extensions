@@ -8,5 +8,6 @@ export default defineConfig({
   clean: true,
   minify: true,
   treeshake: true,
-  metafile: true,
+  cjsInterop: true,
+  // metafile: true,
 })
