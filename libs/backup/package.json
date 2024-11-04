@@ -1,0 +1,75 @@
+{
+  "name": "@nsea/backup",
+  "version": "1.0.0",
+  "description": "",
+  "keywords": [
+    "lib",
+    "backup",
+    "cloud",
+    "compression",
+    "baidu",
+    "onedrive",
+    "quark"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "bin": {
+    "starter": "bin/starter.js"
+  },
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "homepage": "https://github.com/NorthSeacoder/extensions/blob/main/libs/backup/README.md",
+  "bugs": {
+    "url": "https://github.com/NorthSeacoder/extensions/issues"
+  },
+  "author": "NorthSeacoder",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NorthSeacoder/extensions.git"
+  },
+  "license": "MIT",
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "type": "module",
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.15.4",
+    "@shared/config": "workspace:^",
+    "@types/node-7z": "^2.1.10"
+  },
+  "scripts": {
+    "clean": "rimraf dist stats.html",
+    "start": "esno src/cli/run.ts",
+    "build": "nr clean && tsup",
+    "analyze": "nr clean && tsup --metafile &&esbuild-visualizer --metadata ./dist/metafile-*.json --open",
+    "lint": "tsc",
+    "test": "vitest run",
+    "format": "prettier --write .",
+    "check-format": "prettier --check .",
+    "check-exports": "attw --pack .",
+    "ci": "nr build && nr check-exports && nr lint && nr test",
+    "prepublishOnly": "npm run ci",
+    "release": "pwd && bumpp && npm publish"
+  },
+  "dependencies": {
+    "7zip-bin": "^5.1.1",
+    "@azure/identity": "^2.1.0",
+    "@microsoft/microsoft-graph-client": "^3.0.2",
+    "archiver": "^5.3.1",
+    "axios": "^0.27.2",
+    "cac": "^6.7.14",
+    "commander": "^9.4.0",
+    "form-data": "^4.0.0",
+    "node-7z": "^3.0.0",
+    "winston": "^3.8.1",
+    "winston-daily-rotate-file": "^5.0.0"
+  }
+}
