@@ -1,3 +1,3 @@
-import { extractor } from './cn-extractor'
+import extractor from './extractor'
 
 export default extractor

@@ -1,6 +1,6 @@
 import process from 'node:process'
 import { version as packageVersion } from '../../package.json'
-import { extractor } from '../cn-extractor'
+import extractor from '../extractor'
 import { ExitCode } from './exit-code'
 import { parseArgs } from './parse-args'
 

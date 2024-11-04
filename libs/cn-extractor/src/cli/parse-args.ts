@@ -1,6 +1,6 @@
 import process from 'node:process'
 import cac from 'cac'
-import type { StarterOptions } from '../types/starter'
+import type { extractorOptions } from '../types'
 import { version } from '../../package.json'
 import { ExitCode } from './exit-code'
 
@@ -10,7 +10,7 @@ import { ExitCode } from './exit-code'
 export interface ParsedArgs {
   help?: boolean
   version?: boolean
-  options: StarterOptions
+  options: extractorOptions
 }
 
 /**
@@ -25,9 +25,7 @@ export async function parseArgs(): Promise<ParsedArgs> {
       version: args.version as boolean,
       options: {
         inputFile: args.input,
-        outputTypes: args.outputTypes,
         outputDir: args.outputDir,
-        filterMarkers: args.filterMarkers,
       },
     }
 
@@ -39,14 +37,12 @@ export async function parseArgs(): Promise<ParsedArgs> {
 }
 
 export function loadCliArgs(argv = process.argv) {
-  const cli = cac('xmind')
+  const cli = cac('cn')
 
   cli
     .version(version)
     .option('-i, --input <filePath>', 'Input file path')
     .option('-o, --output-dir <dir>', `Output directory default: '.'`)
-    .option('-t, --output-types <types>', `Output types (comma-separated) default:xmind`)
-    .option('-m, --filter-markers <markers>', `Filter markers (comma-separated) default:priority-1`)
     .help()
 
   const parsed = cli.parse(argv)
@@ -54,8 +50,6 @@ export function loadCliArgs(argv = process.argv) {
     args: {
       input: parsed.options.input,
       outputDir: parsed.options.outputDir ?? '.',
-      outputTypes: parsed.options.outputTypes?.split(',') ?? ['xmind'],
-      filterMarkers: parsed.options.filterMarkers?.split(',') ?? ['priority-1'],
       help: parsed.options.help,
       version: parsed.options.version,
     },
