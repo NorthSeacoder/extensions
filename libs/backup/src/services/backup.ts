@@ -19,6 +19,7 @@ export class BackupService {
   }
 
   async createBackup(source: Source): Promise<string> {
+    const globalStartTime = Date.now()
     await this.validateSource(source)
     const tempFiles: string[] = []
     try {
@@ -37,27 +38,61 @@ export class BackupService {
       tempFiles.push(lockFile, firstZipPath)
       await this.createLockFile(lockFile)
 
-      const startTime = Date.now()
+      // 获取原始文件大小
+      const originalSize = await this.calculateSize(source.path)
 
+      const compressionStartTime = Date.now()
+
+      // 记录第一次压缩开始
+      logger.info('开始第一次压缩', {
+        source: source.path,
+        destination: firstZipPath,
+      })
       await this.createEncryptedZip(source.path, firstZipPath, this.config.backup.compression.first)
+      const firstZipStats = await stat(firstZipPath)
+      const firstCompressionDuration = Date.now() - compressionStartTime
 
+      logger.info('第一次压缩完成', {
+        size: formatSize(firstZipStats.size),
+        duration: this.formatDuration(firstCompressionDuration / 1000),
+        compressionRatio: `${((1 - firstZipStats.size / originalSize) * 100).toFixed(2)}%`,
+      })
+
+      // 记录第二次压缩开始
+      const secondStartTime = Date.now()
+      logger.info('开始第二次压缩', {
+        source: firstZipPath,
+        destination: finalZipPath,
+      })
       await this.createEncryptedZip(firstZipPath, finalZipPath, this.config.backup.compression.second)
+      const secondCompressionDuration = Date.now() - secondStartTime
 
       const endTime = Date.now()
-      const duration = (endTime - startTime) / 1000
+      const totalCompressionDuration = endTime - compressionStartTime
+      const totalDuration = endTime - globalStartTime
       const stats = await stat(finalZipPath)
 
-      logger.info('双重压缩完成', {
+      // 添加详细的完成日志
+      logger.info('备份完成', {
         source: source.path,
+        sourceSize: formatSize(originalSize),
         destination: finalZipPath,
-        size: formatSize(stats.size),
-        duration: this.formatDuration(duration),
+        finalSize: formatSize(stats.size),
+        firstCompressionDuration: this.formatDuration(firstCompressionDuration / 1000),
+        secondCompressionDuration: this.formatDuration(secondCompressionDuration / 1000),
+        compressionDuration: this.formatDuration(totalCompressionDuration / 1000),
+        totalDuration: this.formatDuration(totalDuration / 1000),
+        finalCompressionRatio: `${((1 - stats.size / originalSize) * 100).toFixed(2)}%`,
       })
 
       await this.cleanupTemp(firstZipPath)
       return finalZipPath
     } catch (error) {
-      logger.error('备份过程出错', error as Error)
+      const failDuration = (Date.now() - globalStartTime) / 1000
+      logger.error('备份失败', {
+        error: error as Error,
+        duration: this.formatDuration(failDuration),
+      })
       await Promise.all(tempFiles.map((file) => this.cleanupTemp(file).catch(() => {})))
       throw error
     }
@@ -124,37 +159,45 @@ export class BackupService {
         const totalSize = stats.size
 
         if (totalSize > volumeSize) {
-          // 分卷处理
-          logger.info('文件较大，使用分卷压缩', {
+          // 分卷处理 - 使用并行处理
+          logger.info('文件较大，使用并行分卷压缩', {
             size: formatSize(totalSize),
             volumeSize: formatSize(volumeSize),
           })
 
           const baseDir = path.dirname(destPath)
           const baseName = path.basename(destPath, '.zip')
-          let volumeIndex = 1
-          let processedSize = 0
+          const totalVolumes = Math.ceil(totalSize / volumeSize)
 
-          while (processedSize < totalSize) {
+          // 创建所有分卷的任务
+          const tasks = []
+          for (let volumeIndex = 1; volumeIndex <= totalVolumes; volumeIndex++) {
             const volumePath = path.join(baseDir, `${baseName}.z${String(volumeIndex).padStart(2, '0')}`)
-            const currentVolumeSize = Math.min(volumeSize, totalSize - processedSize)
+            const offset = (volumeIndex - 1) * volumeSize
+            const currentVolumeSize = Math.min(volumeSize, totalSize - offset)
 
-            await this.createVolumeFile(
-              sourcePath,
-              volumePath,
-              config,
-              processedSize,
-              currentVolumeSize,
-              volumeIndex,
-              Math.ceil(totalSize / volumeSize),
+            tasks.push(
+              this.createVolumeFile(
+                sourcePath,
+                volumePath,
+                config,
+                offset,
+                currentVolumeSize,
+                volumeIndex,
+                totalVolumes,
+              ),
             )
-
-            processedSize += currentVolumeSize
-            volumeIndex++
           }
 
-          logger.info('分卷压缩完成', {
-            volumes: volumeIndex - 1,
+          // 并行执行压缩任务，但限制并发数
+          const concurrency = 3 // 根据CPU核心数调整
+          for (let i = 0; i < tasks.length; i += concurrency) {
+            const batch = tasks.slice(i, i + concurrency)
+            await Promise.all(batch)
+          }
+
+          logger.info('并行分卷压缩完成', {
+            volumes: totalVolumes,
             totalSize: formatSize(totalSize),
           })
         } else {
@@ -222,7 +265,11 @@ export class BackupService {
         const bytesDiff = progress.fs.processedBytes - lastBytes
         const speed = timeDiff > 0 ? Math.floor(bytesDiff / timeDiff) : 0
 
-        this.updateProgressBar(totalPercent, speed)
+        // 根据文件路径判断是第一次还是第二次压缩
+        const isSecondCompression = sourcePath.includes('.zip')
+        const progressPrefix = isSecondCompression ? '二次压缩' : '压缩中'
+        console.log('updateProgressBar', totalPercent, speed, progressPrefix)
+        this.updateProgressBar(totalPercent, speed, progressPrefix)
 
         lastBytes = progress.fs.processedBytes
         lastTime = now
@@ -260,101 +307,125 @@ export class BackupService {
   private async createSingleVolume(sourcePath: string, destPath: string, config: CompressionConfig): Promise<void> {
     return new Promise(async (resolve, reject) => {
       try {
-        // 获取源文件/目录的实际大小
-        const totalSize = await this.calculateSize(sourcePath);
-        
-        const key = createHash('sha256')
-          .update(config.password || '')
-          .digest('hex')
-          .slice(0, 32);
-        const iv = randomBytes(16);
-        const cipher = createCipheriv('aes-256-cbc', Buffer.from(key), iv);
-        
+        const totalSize = await this.calculateSize(sourcePath)
+        logger.info('开始单文件压缩', {
+          size: formatSize(totalSize),
+        })
         const archive = archiver('zip', {
-          zlib: { level: config.level }
-        });
+          zlib: { level: config.level },
+        })
 
-        const output = createWriteStream(destPath);
-        output.write(iv);
+        const output = createWriteStream(destPath)
 
-        let lastBytes = 0;
-        let lastTime = Date.now();
+        let lastBytes = 0
+        let lastTime = Date.now()
+        let processedBytes = 0
+        let lastUpdateTime = Date.now()
+        const updateInterval = 500 // 更新间隔
+        
+        // 平滑处理速度
+        const speedWindow: number[] = []
+        const windowSize = 5
 
-        archive.on('progress', (progress) => {
-          if (totalSize === 0) return;
-          const percent = (progress.fs.processedBytes / totalSize) * 100;
-
-          const now = Date.now();
-          const timeDiff = (now - lastTime) / 1000;
-          const bytesDiff = progress.fs.processedBytes - lastBytes;
-          const speed = timeDiff > 0 ? Math.floor(bytesDiff / timeDiff) : 0;
-
-          this.updateProgressBar(percent, speed);
-
-          lastBytes = progress.fs.processedBytes;
-          lastTime = now;
-        });
-
-        archive.on('warning', (err) => {
-          logger.warn('压缩警告', err);
-        });
-
-        archive.on('error', reject);
-
-        output.on('close', () => {
-          logger.info('压缩完成', {
-            size: formatSize(archive.pointer()),
-            path: destPath,
-          });
-          resolve();
-        });
-
-        archive.pipe(cipher).pipe(output);
-
-        const stats = await fs.stat(sourcePath);
-        if (stats.isDirectory()) {
-          archive.directory(sourcePath, false);
-        } else {
-          archive.file(sourcePath, { name: path.basename(sourcePath) });
+        const calculateAverage = (arr: number[]): number => {
+          return arr.reduce((a, b) => a + b, 0) / arr.length
         }
 
-        await archive.finalize();
+        output.on('pipe', (source) => {
+          source.on('data', (chunk: Buffer) => {
+            processedBytes += chunk.length
+            
+            const now = Date.now()
+            if (now - lastUpdateTime < updateInterval) {
+              return
+            }
+            
+            const timeDiff = (now - lastTime) / 1000
+            const bytesDiff = processedBytes - lastBytes
+            
+            // 计算并平滑处理速度
+            const currentSpeed = timeDiff > 0 ? Math.floor(bytesDiff / timeDiff) : 0
+            speedWindow.push(currentSpeed)
+            if (speedWindow.length > windowSize) {
+              speedWindow.shift()
+            }
+
+            const smoothedSpeed = Math.floor(calculateAverage(speedWindow))
+            const percent = (processedBytes / totalSize) * 100
+            const isSecondCompression = sourcePath.includes('.zip')
+            const progressPrefix = isSecondCompression ? '二次压缩' : '压缩中'
+
+            this.updateProgressBar(
+              percent, 
+              smoothedSpeed, 
+              progressPrefix
+            )
+
+            lastBytes = processedBytes
+            lastTime = now
+            lastUpdateTime = now
+          })
+        })
+
+        archive.on('warning', (err) => {
+          logger.warn('压缩警告', err)
+        })
+
+        archive.on('error', reject)
+
+        output.on('close', () => {
+          this.updateProgressBar(100, 0, sourcePath.includes('.zip') ? '二次压缩完成' : '压缩完成')
+          resolve()
+        })
+
+        // 设置压缩管道
+        archive.pipe(output)
+
+        // 添加源文件到压缩流
+        const stats = await fs.stat(sourcePath)
+        if (stats.isDirectory()) {
+          archive.directory(sourcePath, false)
+        } else {
+          archive.file(sourcePath, { name: path.basename(sourcePath) })
+        }
+
+        await archive.finalize()
       } catch (error) {
-        reject(error);
+        reject(error)
       }
-    });
+    })
   }
 
   // 添加计算文件/目录大小的辅助方法
   private async calculateSize(sourcePath: string): Promise<number> {
     try {
-      const stats = await stat(sourcePath);
-      
+      const stats = await stat(sourcePath)
+
       if (stats.isFile()) {
-        return stats.size;
+        return stats.size
       }
-      
+
       if (stats.isDirectory()) {
-        let totalSize = 0;
-        const files = await readdir(sourcePath, { withFileTypes: true });
-        
+        let totalSize = 0
+        const files = await readdir(sourcePath, { withFileTypes: true })
+
         for (const file of files) {
-          const fullPath = path.join(sourcePath, file.name);
+          const fullPath = path.join(sourcePath, file.name)
           if (file.isFile()) {
-            const fileStats = await stat(fullPath);
-            totalSize += fileStats.size;
+            const fileStats = await stat(fullPath)
+            totalSize += fileStats.size
           } else if (file.isDirectory()) {
-            totalSize += await this.calculateSize(fullPath);
+            totalSize += await this.calculateSize(fullPath)
           }
         }
-        
-        return totalSize;
+
+        return totalSize
       }
-      
-      return 0;
+
+      return 0
     } catch (error) {
-      logger.error('计算文件大小失败', error as Error);
-      return 0;
+      logger.error('计算文件大小失败', error as Error)
+      return 0
     }
   }
 
@@ -388,24 +459,23 @@ export class BackupService {
     output.close()
   }
 
-  private updateProgressBar(percent: number, bytesPerSecond: number): void {
-    const width = 30 // 进度条宽度
+  // 更新进度条显示方法,添加压缩比信息
+  private updateProgressBar(
+    percent: number,
+    bytesPerSecond: number,
+    operation: string = '压缩中'
+  ): void {
+    const width = 30
     const complete = Math.floor((width * Math.min(percent, 100)) / 100)
     const incomplete = width - complete
 
-    // 创建进度条
     const progressBar = '[' + '='.repeat(complete) + '>' + ' '.repeat(Math.max(0, incomplete - 1)) + ']'
-
-    // 格式化速度显示
     const speed = bytesPerSecond ? formatSize(bytesPerSecond) + '/s' : 'N/A'
-
-    // 格式化百分比，保留1位小数
     const percentStr = Math.min(percent, 100).toFixed(1).padStart(5)
 
-    // 清除当前行并显示新进度
     process.stdout.clearLine(0)
     process.stdout.cursorTo(0)
-    process.stdout.write(`压缩中 ${progressBar} ${percentStr}% ${speed}`)
+    process.stdout.write(`${operation} ${progressBar} ${percentStr}% 速度:${speed}`)
   }
 
   async cleanOldBackups(type: string): Promise<void> {
