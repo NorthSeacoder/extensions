@@ -14,6 +14,7 @@ export const CompressionSchema = z.object({
   level: z.number().min(1).max(9),
   password: z.string().optional(),
   encryptionMethod: z.enum(['aes256', 'zip20']),
+  volumeSize: z.string().optional(),
 })
 
 // 云存储配置

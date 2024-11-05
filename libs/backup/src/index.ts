@@ -33,7 +33,6 @@ export class BackupManager {
 
   private initCloudServices(): Map<string, CloudService> {
     const services = new Map<string, CloudService>()
-    console.log('initCloudServices', this.config)
     if (this.config.cloud.enabled.includes('baidu')) {
       services.set('baidu', new BaiduCloud(this.config))
     }

@@ -32,12 +32,7 @@ This is a starter template for creating new NPM libraries, containing common con
 
 ## 使用方法 / Usage
 
-1. 复制此模板到你的monorepo中 / Copy this template to your monorepo
-2. 修改 `package.json` 中的项目信息 / Modify project info in `package.json`
-3. 在 `src` 目录下开发你的库 / Develop your library in the `src` directory
-4. 使用 `npm run build` 构建项目 / Build the project using `npm run build`
-5. 在根目录的 `package.json` 中添加 `release:xxx` 脚本，用于发布新版本 / Add a `release:xxx` script in the root `package.json` for publishing new versions
-6. 执行 `release:xxx` 脚本前，先手动使用 `ci` 命令检查代码 / Before running the `release:xxx` script, manually check the code using the `ci` command
+- 百度上传前要安装 bypy,且登录授权
 
 ## 开发 / Development
 

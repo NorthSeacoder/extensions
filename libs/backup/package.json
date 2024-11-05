@@ -42,6 +42,7 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.15.4",
     "@shared/config": "workspace:^",
+    "@types/archiver": "^6.0.3",
     "@types/node-7z": "^2.1.10"
   },
   "scripts": {
@@ -63,7 +64,7 @@
     "7zip-bin": "^5.1.1",
     "@azure/identity": "^2.1.0",
     "@microsoft/microsoft-graph-client": "^3.0.2",
-    "archiver": "^5.3.1",
+    "archiver": "^5.3.2",
     "axios": "^0.27.2",
     "cac": "^6.7.14",
     "commander": "^9.4.0",
