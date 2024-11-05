@@ -7,9 +7,7 @@ import { readdir } from 'fs/promises'
 import { writeFile } from 'fs/promises'
 import fs from 'fs/promises'
 import archiver from 'archiver'
-import { createWriteStream, createReadStream } from 'fs'
-import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'crypto'
-import { pipeline } from 'stream/promises'
+import { createWriteStream } from 'fs'
 
 export class BackupService {
   private readonly config: Config
@@ -151,59 +149,10 @@ export class BackupService {
   private async createEncryptedZip(sourcePath: string, destPath: string, config: CompressionConfig): Promise<void> {
     const maxRetries = 3
     let attempt = 0
-    const volumeSize = 2 * 1024 * 1024 * 1024 // 2GB per volume
 
     while (attempt < maxRetries) {
       try {
-        const stats = await fs.stat(sourcePath)
-        const totalSize = stats.size
-
-        if (totalSize > volumeSize) {
-          // 分卷处理 - 使用并行处理
-          logger.info('文件较大，使用并行分卷压缩', {
-            size: formatSize(totalSize),
-            volumeSize: formatSize(volumeSize),
-          })
-
-          const baseDir = path.dirname(destPath)
-          const baseName = path.basename(destPath, '.zip')
-          const totalVolumes = Math.ceil(totalSize / volumeSize)
-
-          // 创建所有分卷的任务
-          const tasks = []
-          for (let volumeIndex = 1; volumeIndex <= totalVolumes; volumeIndex++) {
-            const volumePath = path.join(baseDir, `${baseName}.z${String(volumeIndex).padStart(2, '0')}`)
-            const offset = (volumeIndex - 1) * volumeSize
-            const currentVolumeSize = Math.min(volumeSize, totalSize - offset)
-
-            tasks.push(
-              this.createVolumeFile(
-                sourcePath,
-                volumePath,
-                config,
-                offset,
-                currentVolumeSize,
-                volumeIndex,
-                totalVolumes,
-              ),
-            )
-          }
-
-          // 并行执行压缩任务，但限制并发数
-          const concurrency = 3 // 根据CPU核心数调整
-          for (let i = 0; i < tasks.length; i += concurrency) {
-            const batch = tasks.slice(i, i + concurrency)
-            await Promise.all(batch)
-          }
-
-          logger.info('并行分卷压缩完成', {
-            volumes: totalVolumes,
-            totalSize: formatSize(totalSize),
-          })
-        } else {
-          // 单文件压缩
-          await this.createSingleVolume(sourcePath, destPath, config)
-        }
+        await this.createSingleVolume(sourcePath, destPath, config)
         return
       } catch (error) {
         attempt++
@@ -216,94 +165,6 @@ export class BackupService {
     }
   }
 
-  private async createVolumeFile(
-    sourcePath: string,
-    volumePath: string,
-    config: CompressionConfig,
-    offset: number,
-    size: number,
-    volumeIndex: number,
-    totalVolumes: number,
-  ): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-      const key = createHash('sha256')
-        .update(config.password || '')
-        .digest('hex')
-        .slice(0, 32)
-      const iv = randomBytes(16)
-      const cipher = createCipheriv('aes-256-cbc', Buffer.from(key), iv)
-
-      const archive = archiver('zip', {
-        zlib: { level: config.level },
-      })
-
-      const output = createWriteStream(volumePath)
-      output.write(iv)
-
-      // 添加分卷信息到文件头
-      const volumeInfo = Buffer.from(
-        JSON.stringify({
-          index: volumeIndex,
-          total: totalVolumes,
-          offset: offset,
-          size: size,
-        }),
-      )
-      output.write(Buffer.from([volumeInfo.length])) // 写入信息长度
-      output.write(volumeInfo) // 写入信息
-
-      let lastBytes = 0
-      let lastTime = Date.now()
-
-      archive.on('progress', (progress) => {
-        if (size === 0) return // 避免除以零
-        const currentVolumePercent = (progress.fs.processedBytes / size) * 100
-        const totalPercent = ((volumeIndex - 1) * 100 + currentVolumePercent) / totalVolumes
-
-        const now = Date.now()
-        const timeDiff = (now - lastTime) / 1000
-        const bytesDiff = progress.fs.processedBytes - lastBytes
-        const speed = timeDiff > 0 ? Math.floor(bytesDiff / timeDiff) : 0
-
-        // 根据文件路径判断是第一次还是第二次压缩
-        const isSecondCompression = sourcePath.includes('.zip')
-        const progressPrefix = isSecondCompression ? '二次压缩' : '压缩中'
-        console.log('updateProgressBar', totalPercent, speed, progressPrefix)
-        this.updateProgressBar(totalPercent, speed, progressPrefix)
-
-        lastBytes = progress.fs.processedBytes
-        lastTime = now
-      })
-
-      archive.on('warning', (err) => {
-        logger.warn('压缩警告', { volume: volumeIndex, error: err })
-      })
-
-      archive.on('error', reject)
-
-      output.on('close', () => {
-        logger.info('分卷完成', {
-          volume: volumeIndex,
-          total: totalVolumes,
-          size: formatSize(archive.pointer()),
-        })
-        resolve()
-      })
-
-      archive.pipe(cipher).pipe(output)
-
-      // 根据offset和size读取相应的文件片段
-      if (await fs.stat(sourcePath).then((stat) => stat.isDirectory())) {
-        archive.directory(sourcePath, false)
-      } else {
-        const stream = createReadStream(sourcePath, { start: offset, end: offset + size - 1 })
-        archive.append(stream, { name: path.basename(sourcePath) })
-      }
-
-      await archive.finalize()
-    })
-  }
-
   private async createSingleVolume(sourcePath: string, destPath: string, config: CompressionConfig): Promise<void> {
     return new Promise(async (resolve, reject) => {
       try {
@@ -311,11 +172,22 @@ export class BackupService {
         logger.info('开始单文件压缩', {
           size: formatSize(totalSize),
         })
+        
+        // 1. 优化 archiver 配置
         const archive = archiver('zip', {
-          zlib: { level: config.level },
+          zlib: { 
+            level: config.level,
+            memLevel: 9, // 增加内存使用以提高性能
+            strategy: 0   // 使用默认策略
+          },
+          store: false,   // 如果不需要压缩,可以设置为 true
+          forceLocalTime: true, // 使用本地时间可以略微提升性能
         })
 
-        const output = createWriteStream(destPath)
+        // 2. 增加缓冲区大小
+        const output = createWriteStream(destPath, {
+          highWaterMark: 1024 * 1024 // 1MB 缓冲区
+        })
 
         let lastBytes = 0
         let lastTime = Date.now()
@@ -378,18 +250,45 @@ export class BackupService {
           resolve()
         })
 
-        // 设置压缩管道
-        archive.pipe(output)
-
-        // 添加源文件到压缩流
+        // 3. 优化文件添加逻辑
         const stats = await fs.stat(sourcePath)
         if (stats.isDirectory()) {
-          archive.directory(sourcePath, false)
+          // 对于目录,使用 glob 模式一次性添加所有文件
+          archive.directory(sourcePath, false, { 
+            ignore: ['**/node_modules/**', '**/.git/**'] // 忽略不需要的文件
+          })
         } else {
-          archive.file(sourcePath, { name: path.basename(sourcePath) })
+          // 对于单个文件,使用更大的读取块
+          archive.file(sourcePath, { 
+            name: path.basename(sourcePath),
+            stats: stats // 提供文件状态可以避免重复获取
+          })
         }
 
+        // 4. 添加错误处理和资源清理
+        const cleanup = () => {
+          archive.removeAllListeners()
+          output.removeAllListeners()
+        }
+
+        archive.on('error', (err) => {
+          cleanup()
+          reject(err)
+        })
+
+        output.on('error', (err) => {
+          cleanup()
+          reject(err)
+        })
+
+        output.on('close', () => {
+          cleanup()
+          resolve()
+        })
+
+        archive.pipe(output)
         await archive.finalize()
+        
       } catch (error) {
         reject(error)
       }
@@ -427,36 +326,6 @@ export class BackupService {
       logger.error('计算文件大小失败', error as Error)
       return 0
     }
-  }
-
-  private async mergeAndDecrypt(volumePaths: string[], outputPath: string, password: string): Promise<void> {
-    const output = createWriteStream(outputPath)
-
-    for (const volumePath of volumePaths) {
-      const input = createReadStream(volumePath)
-
-      // 读取IV
-      const ivBuffer = Buffer.alloc(16)
-      await new Promise((resolve, reject) => {
-        input.once('error', reject)
-        input.once('readable', () => {
-          input.read(16)
-          resolve(null)
-        })
-      })
-
-      // 读取分卷信息
-      const infoLength = (await input.read(1))[0]
-      const infoBuffer = await input.read(infoLength)
-      const volumeInfo = JSON.parse(infoBuffer.toString())
-
-      const key = createHash('sha256').update(password).digest('hex').slice(0, 32)
-
-      const decipher = createDecipheriv('aes-256-cbc', Buffer.from(key), ivBuffer)
-      await pipeline(input, decipher, output)
-    }
-
-    output.close()
   }
 
   // 更新进度条显示方法,添加压缩比信息
