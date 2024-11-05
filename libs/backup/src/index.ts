@@ -33,7 +33,7 @@ export class BackupManager {
 
   private initCloudServices(): Map<string, CloudService> {
     const services = new Map<string, CloudService>()
-    
+    console.log('initCloudServices', this.config)
     if (this.config.cloud.enabled.includes('baidu')) {
       services.set('baidu', new BaiduCloud(this.config))
     }
@@ -128,7 +128,7 @@ export class BackupManager {
 if (require.main === module) {
   import('./utils/logger').then(({ default: logger }) => {
     import('../config').then((config) => {
-      const manager = new BackupManager(config, logger)
+      const manager = new BackupManager(config.default, logger)
       
       // 处理进程信号
       process.on('SIGINT', async () => {

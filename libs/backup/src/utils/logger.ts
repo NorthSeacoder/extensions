@@ -123,6 +123,6 @@ class Logger implements ILogger {
     this.logger.info('备份统计', stats)
   }
 }
-
+import config from '../../config';
 // 创建单例
-export default new Logger(require('../../config'))
+export default new Logger(config)

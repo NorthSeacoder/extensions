@@ -6,11 +6,11 @@ import type { Config } from '../src/types'
 
 const defaultConfig: Config = {
   sources: [
-    {
-      path: path.join(os.homedir(), 'Documents'),
-      type: 'common',
-      retention: 7, // 默认保留7天
-    }
+    // {
+    //   path: path.join(os.homedir(), 'Documents'),
+    //   type: 'common',
+    //   retention: 7, // 默认保留7天
+    // }
   ],
   backup: {
     dir: path.join(os.homedir(), 'Backups'),

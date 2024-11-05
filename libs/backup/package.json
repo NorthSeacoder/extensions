@@ -39,7 +39,6 @@
     "dist",
     "bin"
   ],
-  "type": "module",
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.15.4",
     "@shared/config": "workspace:^",
@@ -48,6 +47,7 @@
   "scripts": {
     "clean": "rimraf dist stats.html",
     "start": "esno src/cli/run.ts",
+    "dev": "esno --watch src/index.ts",
     "build": "nr clean && tsup",
     "analyze": "nr clean && tsup --metafile &&esbuild-visualizer --metadata ./dist/metafile-*.json --open",
     "lint": "tsc",
@@ -67,9 +67,11 @@
     "axios": "^0.27.2",
     "cac": "^6.7.14",
     "commander": "^9.4.0",
+    "deepmerge-ts": "^7.1.3",
     "form-data": "^4.0.0",
     "node-7z": "^3.0.0",
     "winston": "^3.8.1",
-    "winston-daily-rotate-file": "^5.0.0"
+    "winston-daily-rotate-file": "^5.0.0",
+    "zod": "^3.23.8"
   }
 }
