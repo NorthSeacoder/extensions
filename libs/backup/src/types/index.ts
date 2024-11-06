@@ -21,11 +21,6 @@ export const CompressionSchema = z.object({
 export const CloudConfigSchema = z.object({
   enabled: z.array(z.enum(['baidu', 'quark', 'onedrive'])),
   remoteDir: z.string(),
-  baidu: z.object({
-    appKey: z.string(),
-    secretKey: z.string(),
-    accessToken: z.string(),
-  }).optional(),
   quark: z.object({
     cookie: z.string(),
   }).optional(),
@@ -39,12 +34,11 @@ export const CloudConfigSchema = z.object({
 // 完整配置
 export const ConfigSchema = z.object({
   sources: z.array(SourceSchema),
+  encryption: z.object({
+    key: z.string(),
+  }),
   backup: z.object({
     dir: z.string(),
-    compression: z.object({
-      first: CompressionSchema,
-      second: CompressionSchema,
-    }),
   }),
   cloud: CloudConfigSchema,
   logger: z.object({

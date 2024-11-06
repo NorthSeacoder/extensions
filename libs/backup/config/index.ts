@@ -51,7 +51,7 @@ function expandPathsInConfig(config: any): any {
 }
 
 // 加载本地配置（如果存在）
-const localConfigPath = path.join(__dirname, 'local.js')
+const localConfigPath = path.join(process.cwd(), 'local.js')
 const localConfig = fs.existsSync(localConfigPath) ? require(localConfigPath).default : {}
 
 // 合并配置

@@ -1,13 +1,15 @@
-import { mkdir, stat, unlink, rmdir } from 'fs/promises'
+import { createCipheriv, createDecipheriv, randomBytes, scrypt } from 'crypto'
+import { pipeline } from 'stream/promises'
+import { createReadStream, createWriteStream } from 'fs'
+import { promisify } from 'util'
 import path from 'path'
-import type { Config, Source, CompressionConfig } from '../types'
+import type { Config, Source } from '../types'
 import logger from '../utils/logger'
 import { formatSize } from '../utils'
 import { readdir } from 'fs/promises'
-import { writeFile } from 'fs/promises'
-import fs from 'fs/promises'
-import archiver from 'archiver'
-import { createWriteStream } from 'fs'
+import { mkdir, stat, unlink } from 'fs/promises'
+import * as tar from 'tar'
+import { tmpdir } from 'os'
 
 export class BackupService {
   private readonly config: Config
@@ -19,89 +21,146 @@ export class BackupService {
   async createBackup(source: Source): Promise<string> {
     const globalStartTime = Date.now()
     await this.validateSource(source)
-    const tempFiles: string[] = []
+
     try {
+      const stats = await stat(source.path)
+      let sourceFilePath = source.path
+
+      // 如果是目录，先创建临时 tar 文件
+      if (stats.isDirectory()) {
+        sourceFilePath = await this.createTempTar(source.path)
+      }
+
+      // 生成输出文件路径
       const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-      const firstZipName = `backup_${source.type}_${timestamp}_1.zip`
-      const finalZipName = `backup_${source.type}_${timestamp}.zip`
+      const encryptedFileName = `backup_${source.type}_${timestamp}.enc`
+      const outputPath = path.join(this.config.backup.dir, source.type, encryptedFileName)
 
-      const tempDir = path.join(this.config.backup.dir, 'temp')
-      const firstZipPath = path.join(tempDir, firstZipName)
-      const finalZipPath = path.join(this.config.backup.dir, source.type, finalZipName)
+      // 创建目录
+      await mkdir(path.dirname(outputPath), { recursive: true })
 
-      await mkdir(tempDir, { recursive: true })
-      await mkdir(path.dirname(finalZipPath), { recursive: true })
+      // 获取原始文件大小用于进度显示
+      const originalSize = await this.calculateSize(sourceFilePath)
 
-      const lockFile = path.join(tempDir, `${firstZipName}.lock`)
-      tempFiles.push(lockFile, firstZipPath)
-      await this.createLockFile(lockFile)
-
-      // 获取原始文件大小
-      const originalSize = await this.calculateSize(source.path)
-
-      const compressionStartTime = Date.now()
-
-      // 记录第一次压缩开始
-      logger.info('开始第一次压缩', {
-        source: source.path,
-        destination: firstZipPath,
-      })
-      await this.createEncryptedZip(source.path, firstZipPath, this.config.backup.compression.first)
-      const firstZipStats = await stat(firstZipPath)
-      const firstCompressionDuration = Date.now() - compressionStartTime
-
-      logger.info('第一次压缩完成', {
-        size: formatSize(firstZipStats.size),
-        duration: this.formatDuration(firstCompressionDuration / 1000),
-        compressionRatio: `${((1 - firstZipStats.size / originalSize) * 100).toFixed(2)}%`,
+      logger.info('开始加密', {
+        source: sourceFilePath,
+        destination: outputPath,
       })
 
-      // 记录第二次压缩开始
-      const secondStartTime = Date.now()
-      logger.info('开始第二次压缩', {
-        source: firstZipPath,
-        destination: finalZipPath,
-      })
-      await this.createEncryptedZip(firstZipPath, finalZipPath, this.config.backup.compression.second)
-      const secondCompressionDuration = Date.now() - secondStartTime
+      // 执行加密
+      await this.encryptFile(sourceFilePath, outputPath, originalSize)
+
+      // 如果创建了临时文件，删除它
+      if (sourceFilePath !== source.path) {
+        await unlink(sourceFilePath)
+      }
 
       const endTime = Date.now()
-      const totalCompressionDuration = endTime - compressionStartTime
-      const totalDuration = endTime - globalStartTime
-      const stats = await stat(finalZipPath)
+      const finalStats = await stat(outputPath)
 
-      // 添加详细的完成日志
-      logger.info('备份完成', {
-        source: source.path,
+      logger.info('加密完成', {
+        source: sourceFilePath,
         sourceSize: formatSize(originalSize),
-        destination: finalZipPath,
-        finalSize: formatSize(stats.size),
-        firstCompressionDuration: this.formatDuration(firstCompressionDuration / 1000),
-        secondCompressionDuration: this.formatDuration(secondCompressionDuration / 1000),
-        compressionDuration: this.formatDuration(totalCompressionDuration / 1000),
-        totalDuration: this.formatDuration(totalDuration / 1000),
-        finalCompressionRatio: `${((1 - stats.size / originalSize) * 100).toFixed(2)}%`,
+        destination: outputPath,
+        finalSize: formatSize(finalStats.size),
+        duration: this.formatDuration((endTime - globalStartTime) / 1000),
       })
 
-      await this.cleanupTemp(firstZipPath)
-      return finalZipPath
+      return outputPath
     } catch (error) {
       const failDuration = (Date.now() - globalStartTime) / 1000
-      logger.error('备份失败', {
+      logger.error('加密失败', {
         error: error as Error,
         duration: this.formatDuration(failDuration),
       })
-      await Promise.all(tempFiles.map((file) => this.cleanupTemp(file).catch(() => {})))
       throw error
     }
   }
 
-  private async createLockFile(lockPath: string): Promise<void> {
-    const lockContent = {
-      timestamp: new Date().toISOString(),
-      pid: process.pid,
-    }
-    await writeFile(lockPath, JSON.stringify(lockContent))
+  private async encryptFile(sourcePath: string, destPath: string, totalSize: number): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // 生成加密所需的密钥和 IV
+        const password = this.config.encryption.key
+        if (!password) {
+          throw new Error('未配置加密密钥')
+        }
+
+        const salt = randomBytes(32)
+        const iv = randomBytes(16)
+        const key = (await promisify(scrypt)(password, salt, 32)) as Buffer
+
+        // 创建加密器
+        const cipher = createCipheriv('aes-256-gcm', key, iv)
+
+        // 创建读写流
+        const input = createReadStream(sourcePath)
+        const output = createWriteStream(destPath)
+
+        // 写入加密元数据
+        const header = Buffer.concat([
+          Buffer.from([1]), // 版本号
+          salt, // 32 字节
+          iv, // 16 字节
+        ])
+        output.write(header)
+
+        // 进度追踪
+        let processedBytes = 0
+        let lastBytes = 0
+        let lastTime = Date.now()
+
+        input.on('data', (chunk) => {
+          processedBytes += chunk.length
+
+          const now = Date.now()
+          const timeDiff = (now - lastTime) / 1000
+          if (timeDiff >= 0.5) {
+            // 每500ms更新一次进度
+            const bytesDiff = processedBytes - lastBytes
+            const speed = Math.floor(bytesDiff / timeDiff)
+            const percent = (processedBytes / totalSize) * 100
+
+            this.updateProgressBar(percent, speed, '加密中')
+
+            lastBytes = processedBytes
+            lastTime = now
+          }
+        })
+
+        // 错误处理
+        const cleanup = () => {
+          input.removeAllListeners()
+          output.removeAllListeners()
+          cipher.removeAllListeners()
+        }
+
+        input.on('error', (err) => {
+          cleanup()
+          reject(err)
+        })
+
+        output.on('error', (err) => {
+          cleanup()
+          reject(err)
+        })
+
+        // 完成处理
+        output.on('finish', () => {
+          cleanup()
+          this.updateProgressBar(100, 0, '加密完成')
+          resolve()
+        })
+
+        // 执行加密流程
+        await pipeline(input, cipher, output)
+
+        // 写入认证标签
+        output.write(cipher.getAuthTag())
+      } catch (error) {
+        reject(error)
+      }
+    })
   }
 
   private async validateSource(source: Source): Promise<void> {
@@ -146,194 +205,14 @@ export class BackupService {
     }
   }
 
-  private async createEncryptedZip(sourcePath: string, destPath: string, config: CompressionConfig): Promise<void> {
-    const maxRetries = 3
-    let attempt = 0
-
-    while (attempt < maxRetries) {
-      try {
-        await this.createSingleVolume(sourcePath, destPath, config)
-        return
-      } catch (error) {
-        attempt++
-        if (attempt >= maxRetries) {
-          logger.error('压缩失败，已达到最大重试次数', error as Error)
-          throw error
-        }
-        await new Promise((resolve) => setTimeout(resolve, 5000 * attempt))
-      }
-    }
-  }
-
-  private async createSingleVolume(sourcePath: string, destPath: string, config: CompressionConfig): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const totalSize = await this.calculateSize(sourcePath)
-        logger.info('开始单文件压缩', {
-          size: formatSize(totalSize),
-        })
-        
-        // 1. 优化 archiver 配置
-        const archive = archiver('zip', {
-          zlib: { 
-            level: config.level,
-            memLevel: 9, // 增加内存使用以提高性能
-            strategy: 0   // 使用默认策略
-          },
-          store: false,   // 如果不需要压缩,可以设置为 true
-          forceLocalTime: true, // 使用本地时间可以略微提升性能
-        })
-
-        // 2. 增加缓冲区大小
-        const output = createWriteStream(destPath, {
-          highWaterMark: 1024 * 1024 // 1MB 缓冲区
-        })
-
-        let lastBytes = 0
-        let lastTime = Date.now()
-        let processedBytes = 0
-        let lastUpdateTime = Date.now()
-        const updateInterval = 500 // 更新间隔
-        
-        // 平滑处理速度
-        const speedWindow: number[] = []
-        const windowSize = 5
-
-        const calculateAverage = (arr: number[]): number => {
-          return arr.reduce((a, b) => a + b, 0) / arr.length
-        }
-
-        output.on('pipe', (source) => {
-          source.on('data', (chunk: Buffer) => {
-            processedBytes += chunk.length
-            
-            const now = Date.now()
-            if (now - lastUpdateTime < updateInterval) {
-              return
-            }
-            
-            const timeDiff = (now - lastTime) / 1000
-            const bytesDiff = processedBytes - lastBytes
-            
-            // 计算并平滑处理速度
-            const currentSpeed = timeDiff > 0 ? Math.floor(bytesDiff / timeDiff) : 0
-            speedWindow.push(currentSpeed)
-            if (speedWindow.length > windowSize) {
-              speedWindow.shift()
-            }
-
-            const smoothedSpeed = Math.floor(calculateAverage(speedWindow))
-            const percent = (processedBytes / totalSize) * 100
-            const isSecondCompression = sourcePath.includes('.zip')
-            const progressPrefix = isSecondCompression ? '二次压缩' : '压缩中'
-
-            this.updateProgressBar(
-              percent, 
-              smoothedSpeed, 
-              progressPrefix
-            )
-
-            lastBytes = processedBytes
-            lastTime = now
-            lastUpdateTime = now
-          })
-        })
-
-        archive.on('warning', (err) => {
-          logger.warn('压缩警告', err)
-        })
-
-        archive.on('error', reject)
-
-        output.on('close', () => {
-          this.updateProgressBar(100, 0, sourcePath.includes('.zip') ? '二次压缩完成' : '压缩完成')
-          resolve()
-        })
-
-        // 3. 优化文件添加逻辑
-        const stats = await fs.stat(sourcePath)
-        if (stats.isDirectory()) {
-          // 对于目录,使用 glob 模式一次性添加所有文件
-          archive.directory(sourcePath, false, { 
-            ignore: ['**/node_modules/**', '**/.git/**'] // 忽略不需要的文件
-          })
-        } else {
-          // 对于单个文件,使用更大的读取块
-          archive.file(sourcePath, { 
-            name: path.basename(sourcePath),
-            stats: stats // 提供文件状态可以避免重复获取
-          })
-        }
-
-        // 4. 添加错误处理和资源清理
-        const cleanup = () => {
-          archive.removeAllListeners()
-          output.removeAllListeners()
-        }
-
-        archive.on('error', (err) => {
-          cleanup()
-          reject(err)
-        })
-
-        output.on('error', (err) => {
-          cleanup()
-          reject(err)
-        })
-
-        output.on('close', () => {
-          cleanup()
-          resolve()
-        })
-
-        archive.pipe(output)
-        await archive.finalize()
-        
-      } catch (error) {
-        reject(error)
-      }
-    })
-  }
-
   // 添加计算文件/目录大小的辅助方法
   private async calculateSize(sourcePath: string): Promise<number> {
-    try {
-      const stats = await stat(sourcePath)
-
-      if (stats.isFile()) {
-        return stats.size
-      }
-
-      if (stats.isDirectory()) {
-        let totalSize = 0
-        const files = await readdir(sourcePath, { withFileTypes: true })
-
-        for (const file of files) {
-          const fullPath = path.join(sourcePath, file.name)
-          if (file.isFile()) {
-            const fileStats = await stat(fullPath)
-            totalSize += fileStats.size
-          } else if (file.isDirectory()) {
-            totalSize += await this.calculateSize(fullPath)
-          }
-        }
-
-        return totalSize
-      }
-
-      return 0
-    } catch (error) {
-      logger.error('计算文件大小失败', error as Error)
-      return 0
-    }
+    const stats = await stat(sourcePath)
+    return stats.size
   }
 
-  // 更新进度条显示方法,添加压缩比信息
-  private updateProgressBar(
-    percent: number,
-    bytesPerSecond: number,
-    operation: string = '压缩中'
-  ): void {
+  // 更新进度条显示方法
+  private updateProgressBar(percent: number, bytesPerSecond: number, operation: string = '加密中'): void {
     const width = 30
     const complete = Math.floor((width * Math.min(percent, 100)) / 100)
     const incomplete = width - complete
@@ -391,47 +270,166 @@ export class BackupService {
     }
   }
 
-  private async cleanupTemp(filePath: string): Promise<void> {
+  private async createTempTar(dirPath: string): Promise<string> {
+    const tempFile = path.join(tmpdir(), `backup-${Date.now()}.tar`);
+    await tar.create(
+      {
+        file: tempFile,
+        cwd: path.dirname(dirPath),
+      },
+      [path.basename(dirPath)]
+    );
+
+    return tempFile;
+  }
+
+  async decryptBackup(encryptedPath: string, outputPath: string): Promise<void> {
+    const startTime = Date.now();
+    
     try {
-      const startTime = Date.now()
+      logger.info('开始解密', {
+        source: encryptedPath,
+        destination: outputPath,
+      });
 
-      // 检查文件是否存在
-      const exists = await stat(filePath).catch(() => false)
-      if (!exists) {
-        logger.debug('临时文件已不存在', { file: filePath })
-        return
-      }
-
-      // 获取文件大小用于日志记录
-      const fileStats = await stat(filePath)
-      const fileSize = formatSize(fileStats.size)
-
-      // 删除文件
-      await unlink(filePath)
-
-      const duration = (Date.now() - startTime) / 1000
-      logger.debug('清理临时文件完成', {
-        file: filePath,
-        size: fileSize,
-        duration: this.formatDuration(duration),
-      })
-
-      // 如果是最后一个临时文件，尝试删除临时目录
-      const tempDir = path.dirname(filePath)
-      const remainingFiles = await readdir(tempDir)
-      if (remainingFiles.length === 0) {
-        try {
-          await rmdir(tempDir)
-          logger.debug('清理空临时目录', { dir: tempDir })
-        } catch (error) {
-          logger.warn('清理临时目录失败', { dir: tempDir, error })
-        }
-      }
+      // 确保输出目录存在
+      await mkdir(path.dirname(outputPath), { recursive: true });
+      
+      const stats = await stat(encryptedPath);
+      await this.decryptFile(encryptedPath, outputPath, stats.size);
+      
+      const endTime = Date.now();
+      const finalStats = await stat(outputPath);
+      
+      logger.info('解密完成', {
+        source: encryptedPath,
+        sourceSize: formatSize(stats.size),
+        destination: outputPath,
+        finalSize: formatSize(finalStats.size),
+        duration: this.formatDuration((endTime - startTime) / 1000),
+      });
     } catch (error) {
-      logger.warn('清理临时文件失败', {
-        file: filePath,
-        error: error instanceof Error ? error.message : String(error),
-      })
+      const failDuration = (Date.now() - startTime) / 1000;
+      logger.error('解密失败', {
+        error: error as Error,
+        duration: this.formatDuration(failDuration),
+      });
+      throw error;
     }
+  }
+
+  private async decryptFile(sourcePath: string, destPath: string, totalSize: number): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const password = this.config.encryption.key;
+        if (!password) {
+          throw new Error('未配置解密密钥');
+        }
+
+        // 创建读写流
+        const input = createReadStream(sourcePath);
+        const output = createWriteStream(destPath);
+
+        // 读取文件头
+        const headerBuffer = Buffer.alloc(49); // 1(版本) + 32(salt) + 16(iv) 字节
+        await new Promise<void>((resolve, reject) => {
+          input.once('error', reject);
+          input.once('readable', () => {
+            const chunk = input.read(49);
+            if (!chunk || chunk.length !== 49) {
+              reject(new Error('无效的加密文件格式'));
+              return;
+            }
+            chunk.copy(headerBuffer);
+            resolve();
+          });
+        });
+
+        // 解析文件头
+        const version = headerBuffer[0];
+        if (version !== 1) {
+          throw new Error(`不支持的文件版本: ${version}`);
+        }
+
+        const salt = headerBuffer.subarray(1, 33);
+        const iv = headerBuffer.subarray(33, 49);
+
+        // 派生解密密钥
+        const key = await promisify(scrypt)(password, salt, 32) as Buffer;
+
+        // 创建解密器
+        const decipher = createDecipheriv('aes-256-gcm', key, iv);
+
+        // 读取认证标签（位于文件末尾）
+        const authTagBuffer = Buffer.alloc(16);
+        await new Promise<void>((resolve, reject) => {
+          input.once('end', () => {
+            const chunk = input.read();
+            if (chunk) {
+              const authTag = chunk.subarray(chunk.length - 16);
+              authTag.copy(authTagBuffer);
+              decipher.setAuthTag(authTag);
+            }
+            resolve();
+          });
+        });
+
+        // 进度追踪
+        let processedBytes = 49; // 从文件头之后开始计算
+        let lastBytes = processedBytes;
+        let lastTime = Date.now();
+
+        input.on('data', (chunk) => {
+          processedBytes += chunk.length;
+          
+          const now = Date.now();
+          const timeDiff = (now - lastTime) / 1000;
+          if (timeDiff >= 0.5) { // 每500ms更新一次进度
+            const bytesDiff = processedBytes - lastBytes;
+            const speed = Math.floor(bytesDiff / timeDiff);
+            const percent = (processedBytes / totalSize) * 100;
+            
+            this.updateProgressBar(percent, speed, '解密中');
+            
+            lastBytes = processedBytes;
+            lastTime = now;
+          }
+        });
+
+        // 错误处理
+        const cleanup = () => {
+          input.removeAllListeners();
+          output.removeAllListeners();
+          decipher.removeAllListeners();
+        };
+
+        input.on('error', (err) => {
+          cleanup();
+          reject(err);
+        });
+
+        output.on('error', (err) => {
+          cleanup();
+          reject(err);
+        });
+
+        // 完成处理
+        output.on('finish', () => {
+          cleanup();
+          this.updateProgressBar(100, 0, '解密完成');
+          resolve();
+        });
+
+        // 执行解密流程
+        await pipeline(
+          input,
+          decipher,
+          output
+        );
+
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 }

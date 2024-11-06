@@ -11,15 +11,15 @@ interface LogMeta {
 interface LoggerConfig {
   dir: string
   level: 'debug' | 'info' | 'warn' | 'error'
-  maxFiles: number
-  format: string
+  maxFiles?: number
+  format?: string
 }
 
 export interface ILogger {
-  debug(message: string, meta?: LogMeta): void;
-  info(message: string, meta?: LogMeta): void;
-  warn(message: string, meta?: LogMeta): void;
-  error(message: string, error?: Error | null): void;
+  debug(message: string, meta?: LogMeta | Error | null): void;
+  info(message: string, meta?: LogMeta | Error | null): void;
+  warn(message: string, meta?: LogMeta | Error | null): void;
+  error(message: string, meta?: LogMeta | Error | null): void;
   profile(label: string): void;
   stats(stats: { type: string; size: number; duration: number; success: boolean }): void;
 }
@@ -89,28 +89,38 @@ class Logger implements ILogger {
     return transports
   }
 
-  debug(message: string, meta: LogMeta = {}): void {
-    this.logger.debug(message, meta)
-  }
-
-  info(message: string, meta: LogMeta = {}): void {
-    this.logger.info(message, meta)
-  }
-
-  warn(message: string, meta: LogMeta = {}): void {
-    this.logger.warn(message, meta)
-  }
-
-  error(message: string, error: Error | null = null): void {
-    const meta: LogMeta = {}
-    if (error) {
-      meta.error = {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      }
+  private processMetadata(meta: LogMeta | Error | null = null): LogMeta {
+    if (!meta) {
+      return {};
     }
-    this.logger.error(message, meta)
+
+    if (meta instanceof Error) {
+      return {
+        error: {
+          message: meta.message,
+          stack: meta.stack,
+          name: meta.name,
+        }
+      };
+    }
+
+    return meta;
+  }
+
+  debug(message: string, meta: LogMeta | Error | null = null): void {
+    this.logger.debug(message, this.processMetadata(meta));
+  }
+
+  info(message: string, meta: LogMeta | Error | null = null): void {
+    this.logger.info(message, this.processMetadata(meta));
+  }
+
+  warn(message: string, meta: LogMeta | Error | null = null): void {
+    this.logger.warn(message, this.processMetadata(meta));
+  }
+
+  error(message: string, meta: LogMeta | Error | null = null): void {
+    this.logger.error(message, this.processMetadata(meta));
   }
 
   // 用于记录性能指标

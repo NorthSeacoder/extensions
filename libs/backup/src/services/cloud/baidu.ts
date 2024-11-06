@@ -9,10 +9,6 @@ export class BaiduCloud extends BaseCloudStorage {
 
   async validateConfig(): Promise<void> {
     // 验证百度网盘配置是否有效
-    if (!this.config.cloud.baidu?.accessToken) {
-      throw new Error('百度网盘配置无效：缺少 accessToken')
-    }
-
     // 检查 bypy 是否已安装
     try {
       await this.runBypyCommand(['--version'])
