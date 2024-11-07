@@ -70,7 +70,7 @@ export class BackupManager {
 
     this.isRunning = true
     this.logger.info('开始备份任务')
-
+    console.log(this.config.sources)
     try {
       for (const source of this.config.sources) {
         await this.processBackupSource(source)
@@ -115,25 +115,29 @@ export class BackupManager {
   }
 }
 
-// 启动备份
-if (require.main === module) {
-  import('./utils/logger').then(({ default: logger }) => {
-    import('../config').then((config) => {
-      const manager = new BackupManager(config.default, logger)
+// 使用静态导入
+import logger from './utils/logger'
+import config from '../config'
 
-      // 处理进程信号
-      process.on('SIGINT', async () => {
-        logger.info('收到终止信号')
-        await manager.stop()
-        process.exit(0)
-      })
+export async function bootstrap() {
+  const manager = new BackupManager(config, logger)
 
-      manager.start().catch((error) => {
-        logger.error('备份任务异常终止', error as Error)
-        process.exit(1)
-      })
-    })
+  // 处理进程信号
+  process.on('SIGINT', async () => {
+    logger.info('收到终止信号')
+    await manager.stop()
+    process.exit(0)
   })
+
+  await manager.start().catch((error) => {
+    logger.error('备份任务异常终止', error as Error)
+    process.exit(1)
+  })
+}
+
+// 修改运行判断逻辑
+if (import.meta.url.endsWith('index.ts')) {
+  bootstrap()
 }
 
 export default BackupManager

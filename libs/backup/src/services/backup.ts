@@ -221,9 +221,13 @@ export class BackupService {
     const speed = bytesPerSecond ? formatSize(bytesPerSecond) + '/s' : 'N/A'
     const percentStr = Math.min(percent, 100).toFixed(1).padStart(5)
 
-    process.stdout.clearLine(0)
-    process.stdout.cursorTo(0)
-    process.stdout.write(`${operation} ${progressBar} ${percentStr}% 速度:${speed}`)
+    // 使用 \r 回到行首，并使用足够的空格清除可能的残留字符
+    process.stdout.write(`\r${operation} ${progressBar} ${percentStr}% 速度:${speed}${' '.repeat(20)}`)
+    
+    // 如果是完成状态，添加换行符
+    if (percent >= 100) {
+      process.stdout.write('\n')
+    }
   }
 
   async cleanOldBackups(type: string): Promise<void> {
